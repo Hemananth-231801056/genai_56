@@ -1,0 +1,509 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>NOVA — AI Chatbot</title>
+  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;700;800&family=Lato:wght@300;400&display=swap" rel="stylesheet"/>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #f5f2eb;
+      --surface: #edeae1;
+      --card: #ffffff;
+      --border: #d8d3c8;
+      --accent: #c8621a;
+      --accent-dark: #9e4c12;
+      --text: #1a1814;
+      --muted: #8a8070;
+      --user-bg: #1a1814;
+      --user-text: #f5f2eb;
+      --bot-bg: #ffffff;
+    }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Lato', sans-serif;
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      overflow: hidden;
+    }
+
+    .wrapper {
+      width: 100%;
+      max-width: 700px;
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+      padding: 0 20px 14px;
+    }
+
+    /* ── Header ── */
+    header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 18px 0 14px;
+      border-bottom: 2px solid var(--text);
+      margin-bottom: 14px;
+      flex-shrink: 0;
+    }
+
+    .brand { display: flex; align-items: baseline; gap: 10px; }
+
+    .brand h1 {
+      font-family: 'Syne', sans-serif;
+      font-weight: 800;
+      font-size: 22px;
+      letter-spacing: -0.5px;
+    }
+
+    .brand span {
+      font-size: 11px;
+      color: var(--muted);
+      font-weight: 300;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+    }
+
+    .status {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 11px;
+      color: var(--muted);
+      font-family: 'Syne', sans-serif;
+    }
+
+    .live-dot {
+      width: 7px; height: 7px;
+      background: #3aaa6a;
+      border-radius: 50%;
+      animation: blink 2.5s infinite;
+    }
+
+    @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0.25} }
+
+    /* ── API Key Banner ── */
+    #keyBanner {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-left: 3px solid var(--accent);
+      border-radius: 8px;
+      padding: 10px 12px;
+      margin-bottom: 12px;
+      display: flex;
+      gap: 8px;
+      align-items: center;
+      flex-shrink: 0;
+    }
+
+    .key-label {
+      font-size: 11px;
+      color: var(--muted);
+      white-space: nowrap;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    #apiKeyInput {
+      flex: 1;
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 7px 11px;
+      font-size: 13px;
+      color: var(--text);
+      outline: none;
+      font-family: monospace;
+    }
+
+    #apiKeyInput:focus { border-color: var(--accent); }
+
+    #saveKey {
+      background: var(--accent);
+      color: white;
+      border: none;
+      border-radius: 6px;
+      padding: 7px 14px;
+      font-size: 11px;
+      font-family: 'Syne', sans-serif;
+      font-weight: 700;
+      cursor: pointer;
+      white-space: nowrap;
+      letter-spacing: 0.5px;
+      transition: background 0.2s;
+    }
+
+    #saveKey:hover { background: var(--accent-dark); }
+
+    /* ── Chat ── */
+    #chat {
+      flex: 1;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+      padding: 2px 0 6px;
+      scrollbar-width: thin;
+      scrollbar-color: var(--border) transparent;
+    }
+
+    #chat::-webkit-scrollbar { width: 4px; }
+    #chat::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+    .msg {
+      display: flex;
+      gap: 10px;
+      align-items: flex-start;
+      animation: slideIn 0.2s ease;
+    }
+
+    @keyframes slideIn {
+      from { opacity:0; transform:translateY(8px); }
+      to   { opacity:1; transform:translateY(0); }
+    }
+
+    .msg.user { flex-direction: row-reverse; }
+
+    .avatar {
+      width: 30px; height: 30px;
+      border-radius: 7px;
+      display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0;
+      margin-top: 2px;
+    }
+
+    .msg.bot .avatar {
+      background: var(--text);
+      color: var(--bg);
+      font-family: 'Syne', sans-serif;
+      font-weight: 800;
+      font-size: 10px;
+      letter-spacing: 0.5px;
+    }
+
+    .msg.user .avatar {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      font-size: 14px;
+    }
+
+    .bubble {
+      max-width: 80%;
+      padding: 10px 14px;
+      border-radius: 12px;
+      font-size: 14px;
+      line-height: 1.65;
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
+
+    .msg.bot .bubble {
+      background: var(--bot-bg);
+      border: 1px solid var(--border);
+      border-top-left-radius: 2px;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.05);
+    }
+
+    .msg.user .bubble {
+      background: var(--user-bg);
+      color: var(--user-text);
+      border-top-right-radius: 2px;
+    }
+
+    /* Blinking cursor during stream */
+    .cursor {
+      display: inline-block;
+      width: 2px; height: 13px;
+      background: var(--accent);
+      margin-left: 2px;
+      vertical-align: middle;
+      animation: cur 0.6s steps(1) infinite;
+    }
+
+    @keyframes cur { 0%,100%{opacity:1} 50%{opacity:0} }
+
+    /* Typing dots */
+    .dots { display: flex; gap: 5px; align-items: center; padding: 3px 0; }
+    .tdot {
+      width: 7px; height: 7px;
+      background: var(--muted);
+      border-radius: 50%;
+      animation: td 1.2s infinite;
+    }
+    .tdot:nth-child(2){animation-delay:.2s}
+    .tdot:nth-child(3){animation-delay:.4s}
+    @keyframes td { 0%,60%,100%{transform:translateY(0)} 30%{transform:translateY(-6px)} }
+
+    /* ── Input ── */
+    .input-row {
+      display: flex;
+      gap: 10px;
+      align-items: flex-end;
+      border-top: 1px solid var(--border);
+      padding-top: 12px;
+      flex-shrink: 0;
+    }
+
+    #userInput {
+      flex: 1;
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 10px 14px;
+      font-size: 14px;
+      font-family: 'Lato', sans-serif;
+      color: var(--text);
+      resize: none;
+      outline: none;
+      max-height: 120px;
+      transition: border-color 0.2s;
+      line-height: 1.5;
+    }
+
+    #userInput::placeholder { color: var(--muted); }
+    #userInput:focus { border-color: var(--accent); }
+    #userInput:disabled { opacity: 0.5; }
+
+    #sendBtn {
+      background: var(--text);
+      border: none;
+      border-radius: 10px;
+      width: 42px; height: 42px;
+      cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      transition: background 0.2s, transform 0.1s;
+      flex-shrink: 0;
+    }
+
+    #sendBtn:hover:not(:disabled) { background: var(--accent); }
+    #sendBtn:active:not(:disabled) { transform: scale(0.93); }
+    #sendBtn:disabled { background: var(--border); cursor: not-allowed; }
+    #sendBtn svg { width: 16px; height: 16px; fill: white; }
+
+    .footer {
+      text-align: center;
+      font-size: 10px;
+      color: var(--muted);
+      padding-top: 8px;
+      letter-spacing: 0.5px;
+      text-transform: uppercase;
+      flex-shrink: 0;
+    }
+
+    .footer a { color: var(--accent); text-decoration: none; }
+  </style>
+</head>
+<body>
+<div class="wrapper">
+
+  <header>
+    <div class="brand">
+      <h1>NOVA</h1>
+      <span>GenAI Chatbot · Claude API</span>
+    </div>
+    <div class="status">
+      <span class="live-dot"></span> Claude Sonnet
+    </div>
+  </header>
+
+  <!-- API Key row -->
+  <div id="keyBanner">
+    <span class="key-label">API Key</span>
+    <input type="password" id="apiKeyInput" placeholder="sk-ant-api03-…" autocomplete="off" spellcheck="false"/>
+    <button id="saveKey">SAVE</button>
+  </div>
+
+  <!-- Messages -->
+  <div id="chat"></div>
+
+  <!-- Input -->
+  <div class="input-row">
+    <textarea id="userInput" rows="1" placeholder="Type a message…" disabled></textarea>
+    <button id="sendBtn" disabled title="Send">
+      <svg viewBox="0 0 24 24"><path d="M2 21l21-9L2 3v7l15 2-15 2z"/></svg>
+    </button>
+  </div>
+  <p class="footer">
+    Generative AI Subject Project &nbsp;·&nbsp; Get your API key at
+    <a href="https://console.anthropic.com" target="_blank">console.anthropic.com</a>
+  </p>
+
+</div>
+
+<script>
+  // ── Config ───────────────────────────────────────────────────────
+  const MODEL  = 'claude-sonnet-4-20250514';
+  const SYSTEM = 'You are NOVA, a helpful AI assistant built for a Generative AI subject project. Be friendly, clear, and concise.';
+
+  // ── State ────────────────────────────────────────────────────────
+  let apiKey    = localStorage.getItem('nova_key') || '';
+  let history   = []; // full conversation for multi-turn
+  let streaming = false;
+
+  // ── DOM refs ─────────────────────────────────────────────────────
+  const chat     = document.getElementById('chat');
+  const input    = document.getElementById('userInput');
+  const sendBtn  = document.getElementById('sendBtn');
+  const keyInput = document.getElementById('apiKeyInput');
+  const saveBtn  = document.getElementById('saveKey');
+
+  // Pre-fill saved key
+  if (apiKey) { keyInput.value = apiKey; unlockChat(); }
+
+  // ── Save key ─────────────────────────────────────────────────────
+  saveBtn.addEventListener('click', () => {
+    const k = keyInput.value.trim();
+    if (!k.startsWith('sk-')) return showMsg('bot', '⚠️ That doesn\'t look like a valid Anthropic API key (should start with sk-ant-…).');
+    apiKey = k;
+    localStorage.setItem('nova_key', k);
+    unlockChat();
+    showMsg('bot', '✅ API key saved! Hi, I\'m NOVA — your AI assistant. Ask me anything!');
+  });
+
+  function unlockChat() {
+    input.disabled = false;
+    sendBtn.disabled = false;
+    input.placeholder = 'Type a message… (Enter to send)';
+    input.focus();
+  }
+
+  // ── Helpers ──────────────────────────────────────────────────────
+  function showMsg(role, text) {
+    const el = document.createElement('div');
+    el.className = `msg ${role}`;
+    el.innerHTML = `
+      <div class="avatar">${role === 'bot' ? 'AI' : '🧑'}</div>
+      <div class="bubble"></div>`;
+    el.querySelector('.bubble').textContent = text;
+    chat.appendChild(el);
+    scrollEnd();
+    return el.querySelector('.bubble');
+  }
+
+  function showTyping() {
+    const el = document.createElement('div');
+    el.className = 'msg bot'; el.id = 'typing';
+    el.innerHTML = `<div class="avatar">AI</div>
+      <div class="bubble"><div class="dots">
+        <span class="tdot"></span><span class="tdot"></span><span class="tdot"></span>
+      </div></div>`;
+    chat.appendChild(el); scrollEnd();
+  }
+
+  function removeTyping() {
+    const t = document.getElementById('typing');
+    if (t) t.remove();
+  }
+
+  function scrollEnd() { chat.scrollTop = chat.scrollHeight; }
+
+  // ── Send ─────────────────────────────────────────────────────────
+  async function send() {
+    const text = input.value.trim();
+    if (!text || streaming) return;
+    if (!apiKey) return alert('Please enter your API key first.');
+
+    showMsg('user', text);
+    history.push({ role: 'user', content: text });
+    input.value = '';
+    input.style.height = 'auto';
+    sendBtn.disabled = true;
+    streaming = true;
+    showTyping();
+
+    try {
+      const res = await fetch('https://api.anthropic.com/v1/messages', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-api-key': apiKey,
+          'anthropic-version': '2023-06-01',
+          'anthropic-dangerous-direct-browser-access': 'true'
+        },
+        body: JSON.stringify({
+          model: MODEL,
+          max_tokens: 1024,
+          system: SYSTEM,
+          messages: history,
+          stream: true
+        })
+      });
+
+      if (!res.ok) {
+        const e = await res.json().catch(() => ({}));
+        throw new Error(e.error?.message || `HTTP ${res.status}`);
+      }
+
+      removeTyping();
+      const bubble = showMsg('bot', '');
+
+      // Add blinking cursor
+      const cur = document.createElement('span');
+      cur.className = 'cursor';
+      bubble.appendChild(cur);
+
+      // Stream response
+      const reader  = res.body.getReader();
+      const decoder = new TextDecoder();
+      let full = '';
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        for (const line of decoder.decode(value).split('\n')) {
+          if (!line.startsWith('data:')) continue;
+          const raw = line.slice(5).trim();
+          if (raw === '[DONE]') continue;
+          try {
+            const j = JSON.parse(raw);
+            if (j.type === 'content_block_delta' && j.delta?.text) {
+              full += j.delta.text;
+              bubble.textContent = full;
+              bubble.appendChild(cur);
+              scrollEnd();
+            }
+          } catch { /* skip bad JSON */ }
+        }
+      }
+
+      cur.remove();
+      bubble.textContent = full;
+      history.push({ role: 'assistant', content: full });
+
+    } catch (err) {
+      removeTyping();
+      showMsg('bot', `⚠️ Error: ${err.message}\n\nCheck your API key or try again.`);
+    }
+
+    streaming = false;
+    sendBtn.disabled = false;
+    input.focus();
+  }
+
+  // ── Events ───────────────────────────────────────────────────────
+  sendBtn.addEventListener('click', send);
+
+  input.addEventListener('keydown', e => {
+    if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send(); }
+  });
+
+  input.addEventListener('input', () => {
+    input.style.height = 'auto';
+    input.style.height = Math.min(input.scrollHeight, 120) + 'px';
+  });
+
+  // Welcome message if no key yet
+  if (!apiKey) {
+    setTimeout(() => showMsg('bot',
+      '👋 Welcome to NOVA!\n\nEnter your Anthropic API key above to start chatting. You can get a free key at console.anthropic.com\n\nYour key is stored only in your browser (localStorage).'
+    ), 200);
+  }
+</script>
+</body>
+</html>

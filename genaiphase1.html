@@ -1,0 +1,536 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>GenAI Chatbot</title>
+  <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet"/>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #0d0d0f;
+      --surface: #161618;
+      --card: #1e1e21;
+      --border: #2a2a2e;
+      --accent: #7b61ff;
+      --accent2: #00e5c3;
+      --text: #f0f0f2;
+      --muted: #7a7a85;
+      --user-bubble: #7b61ff22;
+      --bot-bubble: #1e1e21;
+    }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'DM Sans', sans-serif;
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+    }
+
+    /* Background grid */
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background-image:
+        linear-gradient(rgba(123,97,255,0.04) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(123,97,255,0.04) 1px, transparent 1px);
+      background-size: 40px 40px;
+      pointer-events: none;
+    }
+
+    .wrapper {
+      width: 100%;
+      max-width: 720px;
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+      padding: 20px;
+    }
+
+    header {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 16px 0 20px;
+      border-bottom: 1px solid var(--border);
+      margin-bottom: 12px;
+    }
+
+    .bot-avatar {
+      width: 40px; height: 40px;
+      background: linear-gradient(135deg, var(--accent), var(--accent2));
+      border-radius: 12px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 18px;
+      flex-shrink: 0;
+    }
+
+    .bot-info h1 {
+      font-family: 'Space Mono', monospace;
+      font-size: 15px;
+      color: var(--text);
+    }
+
+    .bot-info p {
+      font-size: 12px;
+      color: var(--accent2);
+      margin-top: 2px;
+    }
+
+    .status-dot {
+      width: 7px; height: 7px;
+      background: var(--accent2);
+      border-radius: 50%;
+      display: inline-block;
+      margin-right: 5px;
+      animation: pulse 2s infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.3; }
+    }
+
+    /* Chat area */
+    #chat {
+      flex: 1;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+      padding: 8px 0;
+      scrollbar-width: thin;
+      scrollbar-color: var(--border) transparent;
+    }
+
+    #chat::-webkit-scrollbar { width: 4px; }
+    #chat::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+    .msg {
+      display: flex;
+      gap: 10px;
+      align-items: flex-end;
+      animation: fadeUp 0.25s ease;
+    }
+
+    @keyframes fadeUp {
+      from { opacity: 0; transform: translateY(10px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    .msg.user { flex-direction: row-reverse; }
+
+    .avatar {
+      width: 30px; height: 30px;
+      border-radius: 8px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 14px;
+      flex-shrink: 0;
+    }
+
+    .msg.bot .avatar { background: linear-gradient(135deg, var(--accent), var(--accent2)); }
+    .msg.user .avatar { background: var(--card); border: 1px solid var(--border); }
+
+    .bubble {
+      max-width: 78%;
+      padding: 11px 15px;
+      border-radius: 16px;
+      font-size: 14px;
+      line-height: 1.6;
+    }
+
+    .msg.bot .bubble {
+      background: var(--bot-bubble);
+      border: 1px solid var(--border);
+      border-bottom-left-radius: 4px;
+      color: var(--text);
+    }
+
+    .msg.user .bubble {
+      background: var(--user-bubble);
+      border: 1px solid var(--accent);
+      border-bottom-right-radius: 4px;
+      color: var(--text);
+    }
+
+    /* Typing indicator */
+    .typing .bubble {
+      display: flex; gap: 5px; align-items: center;
+      padding: 14px 18px;
+    }
+
+    .dot {
+      width: 7px; height: 7px;
+      background: var(--muted);
+      border-radius: 50%;
+      animation: bounce 1.2s infinite;
+    }
+    .dot:nth-child(2) { animation-delay: 0.2s; }
+    .dot:nth-child(3) { animation-delay: 0.4s; }
+
+    @keyframes bounce {
+      0%, 60%, 100% { transform: translateY(0); }
+      30% { transform: translateY(-6px); }
+    }
+
+    /* Suggestions */
+    .suggestions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 6px;
+    }
+
+    .chip {
+      background: transparent;
+      border: 1px solid var(--border);
+      color: var(--muted);
+      padding: 5px 12px;
+      border-radius: 20px;
+      font-size: 12px;
+      font-family: 'DM Sans', sans-serif;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .chip:hover {
+      border-color: var(--accent);
+      color: var(--accent);
+    }
+
+    /* Input area */
+    .input-area {
+      padding: 14px 0 4px;
+      border-top: 1px solid var(--border);
+      display: flex;
+      gap: 10px;
+      align-items: flex-end;
+    }
+
+    #userInput {
+      flex: 1;
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 12px 16px;
+      color: var(--text);
+      font-size: 14px;
+      font-family: 'DM Sans', sans-serif;
+      resize: none;
+      outline: none;
+      max-height: 120px;
+      transition: border-color 0.2s;
+      line-height: 1.5;
+    }
+
+    #userInput::placeholder { color: var(--muted); }
+    #userInput:focus { border-color: var(--accent); }
+
+    #sendBtn {
+      background: linear-gradient(135deg, var(--accent), #5b41df);
+      border: none;
+      border-radius: 12px;
+      width: 44px; height: 44px;
+      cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      transition: opacity 0.2s, transform 0.1s;
+      flex-shrink: 0;
+    }
+
+    #sendBtn:hover { opacity: 0.85; }
+    #sendBtn:active { transform: scale(0.95); }
+
+    #sendBtn svg { width: 18px; height: 18px; fill: white; }
+
+    .footer-note {
+      text-align: center;
+      font-size: 11px;
+      color: var(--muted);
+      padding: 8px 0 0;
+      font-family: 'Space Mono', monospace;
+    }
+  </style>
+</head>
+<body>
+<div class="wrapper">
+  <header>
+    <div class="bot-avatar">🤖</div>
+    <div class="bot-info">
+      <h1>ASTRA — GenAI Chatbot</h1>
+      <p><span class="status-dot"></span>online · rule-based · no API</p>
+    </div>
+  </header>
+
+  <div id="chat"></div>
+
+  <div class="input-area">
+    <textarea id="userInput" rows="1" placeholder="Ask me something…"></textarea>
+    <button id="sendBtn" title="Send">
+      <svg viewBox="0 0 24 24"><path d="M2 21l21-9L2 3v7l15 2-15 2z"/></svg>
+    </button>
+  </div>
+  <p class="footer-note">GenAI Subject Project · Rule-Based NLP · No external API</p>
+</div>
+
+<script>
+  // ── Knowledge Base ──────────────────────────────────────────────
+  const KB = [
+    {
+      patterns: ["hello", "hi", "hey", "howdy", "greetings", "good morning", "good afternoon", "good evening"],
+      responses: [
+        "Hey there! 👋 I'm ASTRA. What's on your mind?",
+        "Hello! Great to see you. How can I help today?",
+        "Hi! I'm ASTRA, your friendly rule-based chatbot. Ask me anything!"
+      ]
+    },
+    {
+      patterns: ["your name", "who are you", "what are you", "introduce yourself"],
+      responses: [
+        "I'm ASTRA — a rule-based chatbot built for a Generative AI subject project. No fancy API, just smart pattern matching! 🤖",
+        "My name is ASTRA! I work entirely in your browser using rule-based logic — no internet calls, no API keys."
+      ]
+    },
+    {
+      patterns: ["how are you", "how do you do", "how's it going", "you okay"],
+      responses: [
+        "I'm running perfectly! All my rules are firing correctly 😄",
+        "Doing great! Ready to chat. What would you like to know?"
+      ]
+    },
+    {
+      patterns: ["what is generative ai", "explain generative ai", "gen ai", "generative artificial intelligence"],
+      responses: [
+        "Generative AI refers to AI systems that can create new content — text, images, audio, or video — by learning patterns from existing data. Examples include ChatGPT, DALL·E, and Stable Diffusion. 🧠"
+      ]
+    },
+    {
+      patterns: ["what is machine learning", "machine learning", "ml"],
+      responses: [
+        "Machine Learning (ML) is a subset of AI where systems learn from data to improve over time without being explicitly programmed. It powers things like recommendations, fraud detection, and image recognition. 📊"
+      ]
+    },
+    {
+      patterns: ["what is deep learning", "deep learning", "neural network", "neural networks"],
+      responses: [
+        "Deep Learning uses multi-layered neural networks to model complex patterns in data. It's behind breakthroughs like voice assistants, self-driving cars, and language models. 🔬"
+      ]
+    },
+    {
+      patterns: ["what is chatgpt", "chatgpt", "gpt", "openai"],
+      responses: [
+        "ChatGPT is a large language model (LLM) created by OpenAI. It generates human-like text by predicting the next token based on context. It's trained on massive amounts of internet data. 💬"
+      ]
+    },
+    {
+      patterns: ["what is llm", "large language model", "language model"],
+      responses: [
+        "A Large Language Model (LLM) is a type of AI trained on vast text datasets to understand and generate human language. Examples: GPT-4, Claude, Gemini, and LLaMA. 📝"
+      ]
+    },
+    {
+      patterns: ["what is nlp", "natural language processing", "natural language"],
+      responses: [
+        "Natural Language Processing (NLP) is the field of AI that deals with teaching computers to understand, interpret, and generate human language. It's used in chatbots, translation, sentiment analysis, and more. 🗣️"
+      ]
+    },
+    {
+      patterns: ["what is python", "python programming", "python language"],
+      responses: [
+        "Python is a popular programming language known for its simplicity and power. It's the go-to language for AI/ML thanks to libraries like TensorFlow, PyTorch, scikit-learn, and Hugging Face. 🐍"
+      ]
+    },
+    {
+      patterns: ["how does this chatbot work", "how do you work", "how are you built", "rule-based", "no api"],
+      responses: [
+        "I work using rule-based pattern matching! Your message is checked against a list of keyword patterns, and I return a relevant response. No API, no server — everything runs in your browser. 🧩"
+      ]
+    },
+    {
+      patterns: ["what can you do", "help", "capabilities", "features"],
+      responses: [
+        "I can chat about: AI & ML concepts, programming, general knowledge, jokes, and more! Try asking about generative AI, deep learning, or just say hello 😊"
+      ]
+    },
+    {
+      patterns: ["tell me a joke", "joke", "funny", "make me laugh"],
+      responses: [
+        "Why did the neural network break up with the dataset? It felt overfit. 😂",
+        "Why do programmers prefer dark mode? Because light attracts bugs! 🐛",
+        "A machine learning model walks into a bar. The bartender says: 'We don't serve your type here.' The model says: 'That's fine, I'll just train on the data until I fit in.' 🤖"
+      ]
+    },
+    {
+      patterns: ["what is ai", "artificial intelligence", "what is artificial intelligence"],
+      responses: [
+        "Artificial Intelligence (AI) is the simulation of human intelligence by machines — enabling them to learn, reason, and solve problems. It includes ML, deep learning, robotics, computer vision, and NLP. 🤖"
+      ]
+    },
+    {
+      patterns: ["what is data science", "data science", "data scientist"],
+      responses: [
+        "Data Science is the field that combines statistics, programming, and domain knowledge to extract insights from data. Data scientists build models, visualize trends, and help organizations make data-driven decisions. 📈"
+      ]
+    },
+    {
+      patterns: ["bye", "goodbye", "see you", "take care", "quit", "exit"],
+      responses: [
+        "Goodbye! Thanks for chatting 👋",
+        "See you later! Keep exploring AI 🚀",
+        "Bye! It was great talking with you 😊"
+      ]
+    },
+    {
+      patterns: ["thank", "thanks", "thank you", "appreciate"],
+      responses: [
+        "You're welcome! 😊",
+        "Happy to help! Anything else?",
+        "Anytime! That's what I'm here for 🤖"
+      ]
+    },
+    {
+      patterns: ["weather", "temperature", "forecast"],
+      responses: [
+        "I can't check real-time weather since I have no internet access! Try weather.com or Google for the latest forecast. ⛅"
+      ]
+    },
+    {
+      patterns: ["time", "current time", "what time"],
+      responses: [
+        `The current time on your device is: ${new Date().toLocaleTimeString()} ⏰`
+      ]
+    },
+    {
+      patterns: ["date", "today", "what day"],
+      responses: [
+        `Today is ${new Date().toLocaleDateString('en-US', { weekday:'long', year:'numeric', month:'long', day:'numeric'})} 📅`
+      ]
+    },
+  ];
+
+  const FALLBACK = [
+    "Hmm, I'm not sure about that one. Try asking about AI, ML, or programming! 🤔",
+    "I don't have a rule for that yet. Maybe ask about Generative AI or chatbots? 💡",
+    "That's outside my knowledge base! I'm rule-based, so I'm best with AI/tech topics. 🔍"
+  ];
+
+  const SUGGESTIONS = [
+    "What is Generative AI?", "Tell me a joke", "How do you work?",
+    "What is deep learning?", "What is NLP?", "What time is it?"
+  ];
+
+  // ── Engine ───────────────────────────────────────────────────────
+  function getResponse(input) {
+    const text = input.toLowerCase().trim();
+    let best = null, bestScore = 0;
+
+    for (const entry of KB) {
+      for (const pattern of entry.patterns) {
+        if (text.includes(pattern)) {
+          const score = pattern.length;
+          if (score > bestScore) {
+            bestScore = score;
+            best = entry;
+          }
+        }
+      }
+    }
+
+    if (best) {
+      const arr = best.responses;
+      return arr[Math.floor(Math.random() * arr.length)];
+    }
+    return FALLBACK[Math.floor(Math.random() * FALLBACK.length)];
+  }
+
+  // ── UI ───────────────────────────────────────────────────────────
+  const chat = document.getElementById('chat');
+  const input = document.getElementById('userInput');
+  const sendBtn = document.getElementById('sendBtn');
+
+  function appendMsg(text, role) {
+    const div = document.createElement('div');
+    div.className = `msg ${role}`;
+    div.innerHTML = `
+      <div class="avatar">${role === 'bot' ? '🤖' : '🧑'}</div>
+      <div class="bubble">${text}</div>
+    `;
+    chat.appendChild(div);
+    chat.scrollTop = chat.scrollHeight;
+  }
+
+  function showTyping() {
+    const div = document.createElement('div');
+    div.className = 'msg bot typing';
+    div.id = 'typing';
+    div.innerHTML = `
+      <div class="avatar">🤖</div>
+      <div class="bubble">
+        <span class="dot"></span>
+        <span class="dot"></span>
+        <span class="dot"></span>
+      </div>
+    `;
+    chat.appendChild(div);
+    chat.scrollTop = chat.scrollHeight;
+  }
+
+  function removeTyping() {
+    const t = document.getElementById('typing');
+    if (t) t.remove();
+  }
+
+  function sendMessage(text) {
+    text = text.trim();
+    if (!text) return;
+    appendMsg(text, 'user');
+    input.value = '';
+    input.style.height = 'auto';
+    showTyping();
+    setTimeout(() => {
+      removeTyping();
+      appendMsg(getResponse(text), 'bot');
+    }, 600 + Math.random() * 400);
+  }
+
+  // Initial greeting with suggestions
+  setTimeout(() => {
+    appendMsg("Hey! I'm <strong>ASTRA</strong> 🤖 — a rule-based chatbot built for a GenAI class project. I run entirely in your browser with no API. Try one of these:", 'bot');
+    const sugDiv = document.createElement('div');
+    sugDiv.className = 'suggestions';
+    SUGGESTIONS.forEach(s => {
+      const chip = document.createElement('button');
+      chip.className = 'chip';
+      chip.textContent = s;
+      chip.onclick = () => sendMessage(s);
+      sugDiv.appendChild(chip);
+    });
+    // append suggestions below last bot message
+    const msgs = chat.querySelectorAll('.msg.bot');
+    const last = msgs[msgs.length - 1];
+    last.querySelector('.bubble').appendChild(sugDiv);
+    chat.scrollTop = chat.scrollHeight;
+  }, 300);
+
+  sendBtn.addEventListener('click', () => sendMessage(input.value));
+
+  input.addEventListener('keydown', e => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      sendMessage(input.value);
+    }
+  });
+
+  input.addEventListener('input', () => {
+    input.style.height = 'auto';
+    input.style.height = Math.min(input.scrollHeight, 120) + 'px';
+  });
+</script>
+</body>
+</html>
